@@ -33,9 +33,7 @@ class Index(webapp.RequestHandler):
     """
     def get(self):
         "Responds to GET requets with the admin interface"
-        # query the datastore for images owned by
-        # the current user. You can't see anyone elses images
-        # in the admin
+        # query the datastore for images.
         images = Image.all()
         images.order("-date")
 
@@ -52,6 +50,29 @@ class Index(webapp.RequestHandler):
             'index.html')
         # render the template with the provided context
         self.response.out.write(template.render(path, context))
+
+class List(webapp.RequestHandler):
+    "Returns a list of images"
+    def get(self):
+        # query the datastore for images.
+        images_query = Image.all().order("-date")
+        offset = self.request.get("start")
+        if offset:
+            offset = int(offset)
+        else:
+	        offset = 0
+
+        # prepare the context for the template
+        results = []
+        for image in images_query.run(offset=offset, limit=10):
+            image_json = {
+               'id': str(image.key())
+            }
+            results.append(image_json)
+
+        # render the template with the provided context
+        self.response.headers['Content-Type'] = "application/json"
+        self.response.out.write(json.dumps(results))
 
 class Deleter(webapp.RequestHandler):
     "Deals with deleting images"
@@ -112,11 +133,12 @@ class Uploader(webapp.RequestHandler):
         # store the image in the datasore
         image.put()
 
-        handle_response(self, True, image.key().id())
+        handle_response(self, True, str(image.key()))
                 
 # wire up the views
 application = webapp.WSGIApplication([
     ('/', Index),
+    ('/list', List),
     ('/upload', Uploader),
     ('/delete', Deleter)
 ], debug=True)
