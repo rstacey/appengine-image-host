@@ -4,6 +4,7 @@ Provides a protected administrative area for uploading and deleteing images
 
 import os
 import datetime
+import json
 
 from google.appengine.ext import db
 from google.appengine.ext import webapp
@@ -13,6 +14,17 @@ from google.appengine.ext.webapp import template
 from google.appengine.api import users
 
 from models import Image
+
+def handle_response(self, success, id):
+    if self.request.get("output") == "json":
+        self.response.headers['Content-Type'] = "application/json"
+        obj = {
+            'success': success, 
+            'id': id,
+          } 
+        self.response.out.write(json.dumps(obj))
+    else:
+        self.redirect('/')
 
 class Index(webapp.RequestHandler):
     """
@@ -51,13 +63,14 @@ class Deleter(webapp.RequestHandler):
         # we get the user as you can only delete your own images
         user = users.get_current_user()
         key = self.request.get("key")
+        success = False
         if key:
             image = db.get(key)
             # check that we own this image
             if image.user == user:
                 image.delete()
-        # whatever happens rediect back to the main admin view
-        self.redirect('/')
+                success = True
+        handle_response(self, success, key)
        
 class Uploader(webapp.RequestHandler):
     "Deals with uploading new images to the datastore"
@@ -68,7 +81,7 @@ class Uploader(webapp.RequestHandler):
 
         # if we don't have image data we'll quit now
         if not img:
-            self.redirect('/')
+            handle_response(self, False, "")
             return 
             
         # we have image data
@@ -102,8 +115,8 @@ class Uploader(webapp.RequestHandler):
                 
         # store the image in the datasore
         image.put()
-        # and redirect back to the admin page
-        self.redirect('/')
+
+        handle_response(self, True, image.key().id())
                 
 # wire up the views
 application = webapp.WSGIApplication([
