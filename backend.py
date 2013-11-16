@@ -37,11 +37,8 @@ class Index(webapp.RequestHandler):
         # the current user. You can't see anyone elses images
         # in the admin
         images = Image.all()
-        images.filter("user =", users.get_current_user())
         images.order("-date")
 
-        # we are enforcing loggins so we know we have a user
-        user = users.get_current_user()
         # we need the logout url for the frontend
         logout = users.create_logout_url("/")
 
@@ -67,9 +64,8 @@ class Deleter(webapp.RequestHandler):
         if key:
             image = db.get(key)
             # check that we own this image
-            if image.user == user:
-                image.delete()
-                success = True
+            image.delete()
+            success = True
         handle_response(self, success, key)
        
 class Uploader(webapp.RequestHandler):
